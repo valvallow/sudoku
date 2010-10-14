@@ -1,10 +1,10 @@
 ;; sudoku - Wikipedia - http://ja.wikipedia.org/wiki/%E6%95%B0%E7%8B%AC
 
 (use srfi-1) ; drop, split-at
+(use srfi-9) ; define-record-type
 (use util.list) ; slices
 (use liv.matrix) ; matrix-*, *-matrix
 (use liv.onlisp.list) ; single?
-
 
 (define-constant region-size 3)
 (define-constant fullset-numbers (iota (* region-size region-size) 1))
@@ -27,7 +27,7 @@
          (slices row size)) matrix))
 
 (define (matrix->regions matrix size)
-  (let1 sliced (slice-matrix-rows test-data size)
+  (let1 sliced (slice-matrix-rows matrix size)
     (let rec ((m sliced)(acc '()))
       (if (null? m)
           (apply append (reverse acc))
@@ -44,6 +44,17 @@
                                                (region-index x y)))))
         (lset-difference eq? fullset-numbers row-candidates
                          col-candidates region-candidates)))))
+
+(define (has-empty? matrix :optional (empty? zero?))
+  (let/cc hop
+    (fold (lambda (row acc)
+            (if-let1 it (any empty? row)
+                     (hop it)
+                     acc)) #f matrix)))
+
+;;
+;; naked single solve
+;;
 
 (define (fix-naked-singles matrix . keywords)
   (let-keywords* keywords ((empty? zero?)
@@ -62,13 +73,6 @@
                        e)) matrix)
                 exist?))))
 
-(define (has-empty? matrix :optional (empty? zero?))
-  (let/cc hop
-    (fold (lambda (row acc)
-            (if-let1 it (any empty? row)
-                     (hop it)
-                     acc)) #f matrix)))
-
 (define (fix-naked-singles-solver matrix
                                   :optional (more (lambda _ 'dead)))
   (let rec ((m matrix))
@@ -77,7 +81,41 @@
             ((has-empty? cand)(more cand))
             (else cand)))))
 
+;;
+;; backtrack solve
+;;
+
+(define-record-type cell
+  (make-cell value fixed candidates) cell?
+  (value cell-value set-cell-value!)
+  (fixed cell-fixed set-cell-fixed!)
+  (candidates cell-candidates set-cell-candidate!))
+
+(define (copy-cell cell)
+  (make-cell (cell-value cell)
+             (cell-fixed cell)
+             (cell-candidates cell)))
+
+(define (matrix->backtrackable-cells matrix
+                                    :optional (empty? zero?))
+  (map-matrix-with-index
+   (lambda (e x y)
+     (if-let1 it (not (empty? e))
+              (make-cell e it '())
+              (make-cell e it (candidates matrix x y)))) matrix))
+
+(define (copy-backtrackable-cells matrix)
+  (map-matrix copy-cell matrix))
+
+(define (print-backtrackable-cell matrix
+                                  :optional (get cell-value))
+  (newline)
+  (print-matrix matrix :element-fun get))
 
 
 
-;; rotate-matrix
+
+
+
+
+
