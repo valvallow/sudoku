@@ -5,10 +5,13 @@
 (use util.list) ; slices
 (use liv.matrix) ; matrix-*, *-matrix
 (use liv.point) ; point
-(use liv.onlisp.list) ; single?
 
 (define-constant region-size 3)
 (define-constant fullset-numbers (iota (* region-size region-size) 1))
+
+(define (single? ls)
+  (and (pair? ls)
+       (null? (cdr ls))))
 
 ;; matrix x or y -> region position
 (define (region-pos mn)
@@ -88,6 +91,11 @@
 ;; backtrack solver
 ;;
 
+(define-record-type point
+  (make-point x y) point?
+  (x point-x)
+  (y point-y))
+
 (define (backtrack-solver matrix)
   (let/cc hop
     (let ((mstack '())(cstack '())(pstack '())(count 0))
@@ -115,7 +123,13 @@
         (hop m count)))))
 
 (equal? test-data-1-ans (backtrack-solver test-data-1))
+;; #t
 (equal? test-data-2-ans (backtrack-solver test-data-2))
+;; #t
 (equal? test-data-3-ans (backtrack-solver test-data-3))
+;; #t
 (equal? test-data-4-ans (backtrack-solver test-data-4))
+;; #t
 (equal? most-difficult-data-ans (backtrack-solver most-difficult-data))
+;; #t
+
