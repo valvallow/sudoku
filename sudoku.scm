@@ -4,6 +4,7 @@
 (use srfi-9) ; define-record-type
 (use util.list) ; slices
 (use liv.matrix) ; matrix-*, *-matrix
+(use liv.point) ; point
 (use liv.onlisp.list) ; single?
 
 (define-constant region-size 3)
@@ -36,14 +37,16 @@
 
 (define (candidates matrix x y . keywords)
   (let-keywords* keywords ((eq? =)
-                           (empty? zero?))
+                           (empty? zero?)
+                           (ignore '()))
     (let1 f (pa$ filter (complement empty?))
       (let* ((row-candidates (f (matrix-row-ref matrix y)))
              (col-candidates (f (matrix-col-ref matrix x)))
              (region-candidates (f (region-ref (matrix->regions matrix region-size)
                                                (region-index x y)))))
         (lset-difference eq? fullset-numbers row-candidates
-                         col-candidates region-candidates)))))
+                         col-candidates region-candidates
+                         ignore)))))
 
 (define (has-empty? matrix :optional (empty? zero?))
   (let/cc hop
@@ -74,7 +77,7 @@
                 exist?))))
 
 (define (fix-naked-singles-solver matrix
-                                  :optional (more (lambda _ 'dead)))
+                                  :optional (more identity))
   (let rec ((m matrix))
     (receive (cand exist?)(fix-naked-singles m)
       (cond (exist? (rec cand))
@@ -82,40 +85,37 @@
             (else cand)))))
 
 ;;
-;; backtrack solve
+;; backtrack solver
 ;;
 
-(define-record-type cell
-  (make-cell value fixed candidates) cell?
-  (value cell-value set-cell-value!)
-  (fixed cell-fixed set-cell-fixed!)
-  (candidates cell-candidates set-cell-candidate!))
+(define (backtrack-solver matrix)
+  (let/cc hop
+    (let ((mstack '())(cstack '())(pstack '())(count 0))
+      (let backtrack ((m (matrix-copy matrix))(bt-cand '())
+                      (bt-point (make-point -1 -1)))
+        (for-each-matrix-with-index
+         (lambda (e x y)
+           (when (zero? e)
+             (let1 cand (if (and (= x (point-x bt-point))
+                                 (= y (point-y bt-point)))
+                            bt-cand
+                            (candidates m x y))
+               (cond ((null? cand)
+                      (inc! count)
+                      (backtrack (pop! mstack)
+                                 (pop! cstack)
+                                 (pop! pstack)))
+                     ((single? cand)
+                      (matrix-set! m x y (car cand)))
+                     (else
+                      (push! mstack (matrix-copy m))
+                      (push! cstack (cdr cand))
+                      (push! pstack (make-point x y))
+                      (matrix-set! m x y (car cand))))))) m)
+        (hop m count)))))
 
-(define (copy-cell cell)
-  (make-cell (cell-value cell)
-             (cell-fixed cell)
-             (cell-candidates cell)))
-
-(define (matrix->backtrackable-cells matrix
-                                    :optional (empty? zero?))
-  (map-matrix-with-index
-   (lambda (e x y)
-     (if-let1 it (not (empty? e))
-              (make-cell e it '())
-              (make-cell e it (candidates matrix x y)))) matrix))
-
-(define (copy-backtrackable-cells matrix)
-  (map-matrix copy-cell matrix))
-
-(define (print-backtrackable-cell matrix
-                                  :optional (get cell-value))
-  (newline)
-  (print-matrix matrix :element-fun get))
-
-
-
-
-
-
-
-
+(equal? test-data-1-ans (backtrack-solver test-data-1))
+(equal? test-data-2-ans (backtrack-solver test-data-2))
+(equal? test-data-3-ans (backtrack-solver test-data-3))
+(equal? test-data-4-ans (backtrack-solver test-data-4))
+(equal? most-difficult-data-ans (backtrack-solver most-difficult-data))
