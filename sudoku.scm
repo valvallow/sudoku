@@ -1,10 +1,13 @@
 ;; sudoku - Wikipedia - http://ja.wikipedia.org/wiki/%E6%95%B0%E7%8B%AC
 
+(define-module liv.game.sudoku
+  (export fix-naked-singles-solver backtrack-solver))
+(select-module liv.game.sudoku)
+
 (use srfi-1) ; drop, split-at
 (use srfi-9) ; define-record-type
 (use util.list) ; slices
 (use liv.matrix) ; matrix-*, *-matrix
-(use liv.point) ; point
 
 (define-constant region-size 3)
 (define-constant fullset-numbers (iota (* region-size region-size) 1))
@@ -122,14 +125,17 @@
                       (matrix-set! m x y (car cand))))))) m)
         (hop m count)))))
 
-(equal? test-data-1-ans (backtrack-solver test-data-1))
-;; #t
-(equal? test-data-2-ans (backtrack-solver test-data-2))
-;; #t
-(equal? test-data-3-ans (backtrack-solver test-data-3))
-;; #t
-(equal? test-data-4-ans (backtrack-solver test-data-4))
-;; #t
-(equal? most-difficult-data-ans (backtrack-solver most-difficult-data))
-;; #t
+;; (equal? test-data-1-ans (backtrack-solver test-data-1))
+;; ;; #t
+;; (equal? test-data-2-ans (backtrack-solver test-data-2))
+;; ;; #t
+;; (equal? test-data-3-ans (backtrack-solver test-data-3))
+;; ;; #t
+;; (equal? test-data-4-ans (backtrack-solver test-data-4))
+;; ;; #t
+;; (equal? most-difficult-data-ans (backtrack-solver most-difficult-data))
+;; ;; #t
+
+
+(provide "liv/game/sudoku")
 
